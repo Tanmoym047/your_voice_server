@@ -127,14 +127,14 @@ async function run() {
 
         // recent blogs api
         app.get('/recent', async (req, res) => {
-            const cursor = blogCollection.find().sort({ "postTime": -1 })
+            const cursor = blogCollection.find().sort({ "time": -1 }).limit(2)
             const result = await cursor.toArray();
             res.send(result);
         })
 
         // featured blogs api
         app.get('/featured', async (req, res) => {
-            const cursor = blogCollection.find().limit(10);
+            const cursor = blogCollection.find().sort({ "time": -1 }).limit(4);
             const result = await cursor.toArray();
             res.send(result);
         })
