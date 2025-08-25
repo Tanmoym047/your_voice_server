@@ -2,8 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const OpenAI = require("openai");
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
 require('dotenv').config()
+
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -21,6 +25,34 @@ app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.nmbltxr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
+// google gemini
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+
+app.post('/generate', async (req, res) => {
+    // Extract the user prompt from the request body
+    const { prompt } = req.body;
+
+    // Check if the prompt is provided
+    if (!prompt) {
+        return res.status(400).json({ error: 'Prompt is required.' });
+    }
+
+    try {
+        // Get the specified generative model
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-05-20" });
+
+        // Generate content using the model and the user's prompt
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+
+        // Send the generated text back as a JSON response
+        res.status(200).json({ text });
+    } catch (error) {
+        // Log and handle any errors during the AI generation process
+        console.error('Error generating text:', error);
+        res.status(500).json({ error: 'Failed to generate content.' });
+    }
+});
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -62,7 +94,7 @@ async function run() {
         // await client.connect();
 
         const blogCollection = client.db('yourVoice').collection('allBlogs');
-        
+
         // auth related api
         // creating cookie
         app.post('/jwt', logger, async (req, res) => {
@@ -130,7 +162,7 @@ async function run() {
         })
 
         // a single blog details api
-        app.get('/allBlogs/:id',logger, verifyToken, async (req, res) => {
+        app.get('/allBlogs/:id', logger, verifyToken, async (req, res) => {
             // if (!req.user.email) {
             //     return res.status(403).send({ mesasge: 'forbidden access' })
             // }
@@ -145,8 +177,13 @@ async function run() {
         // title search api
         app.get('/search', async (req, res) => {
             console.log(req.query.title);
-            query = { title: req.query.title }
+            const title = req.query.title;
+
+            // Case-insensitive, partial match
+            const query = { title: { $regex: title, $options: 'i' } };
+
             const result = await blogCollection.find(query).toArray();
+
             res.send(result);
         })
         // filter api
@@ -200,16 +237,7 @@ async function run() {
             res.send(result);
         })
 
-        // delete from wishlist
-        app.delete('/delete', async (req, res) => {
-            console.log(req.query);
-            const email = req.query.email;
-            const id = req.query.id;
-            const query = { id: id, email: email };
-            const result = await wishlistCollection.deleteOne(query);
-            res.send(result);
-        })
-       
+
         // Send a ping to confirm a successful connection
         // await client.db("admin").command({ ping: 1 });
         // console.log("Pinged your deployment. You successfully connected to MongoDB!");
