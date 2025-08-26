@@ -14,8 +14,8 @@ const port = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         'http://localhost:5173',
-        'https://our-diary-e1561.web.app',
-        'https://our-diary-e1561.firebaseapp.com/',
+        'https://your-voice-5b340.web.app/',
+        'https://your-voice-5b340.firebaseapp.com/',
     ],
     credentials: true
 }));
@@ -99,7 +99,7 @@ async function run() {
         app.post('/jwt', logger, async (req, res) => {
             const user = req.body;
             console.log('user for token', user);
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '3h' })
 
             res
                 .cookie('token', token, {
@@ -136,27 +136,6 @@ async function run() {
         app.get('/featured', async (req, res) => {
             const cursor = blogCollection.find().sort({ "time": -1 }).limit(4);
             const result = await cursor.toArray();
-            res.send(result);
-        })
-
-        // get wishlists api
-        app.get('/wishlist', logger, verifyToken, async (req, res) => {
-            // checking token email and user email
-            console.log(req.user.email);
-            if (req.user.email !== req.query.email) {
-                return res.status(403).send({ mesasge: 'forbidden access' })
-            }
-            console.log(req.query.email);
-            query = { email: req.query.email }
-            const result = await wishlistCollection.find(query).toArray();
-            res.send(result);
-        })
-        // add wishlist api
-        app.post('/wishlist', async (req, res) => {
-            console.log('token owner info', req.user);
-            const newWishlist = req.body;
-            console.log(newWishlist);
-            const result = await wishlistCollection.insertOne(newWishlist);
             res.send(result);
         })
 
@@ -235,6 +214,29 @@ async function run() {
             const result = await blogCollection.updateOne(filter, spot, options);
             res.send(result);
         })
+
+        //deleting blog
+        // A single blog delete API
+        app.delete('/delete/:id', logger, verifyToken, async (req, res) => {
+            try {
+                const id = req.params.id;
+
+                // This is the key fix: Convert the string ID to a MongoDB ObjectId
+                const query = { _id: new ObjectId(id) };
+
+                const result = await blogCollection.deleteOne(query);
+
+                if (result.deletedCount === 1) {
+                    res.send({ success: true, message: 'Blog deleted successfully.' });
+                } else {
+                    res.status(404).send({ success: false, message: 'Blog not found.' });
+                }
+            } catch (error) {
+                console.error('Error deleting blog:', error);
+                // It's also good practice to check for invalid ObjectId errors here
+                res.status(500).send({ success: false, message: 'An error occurred while deleting the blog.' });
+            }
+        });
 
 
         // Send a ping to confirm a successful connection
