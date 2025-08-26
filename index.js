@@ -14,8 +14,8 @@ const port = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         'http://localhost:5173',
-        'https://your-voice-5b340.web.app/',
-        'https://your-voice-5b340.firebaseapp.com/',
+        'https://your-voice-5b340.web.app',
+        'https://your-voice-5b340.firebaseapp.com',
     ],
     credentials: true
 }));
